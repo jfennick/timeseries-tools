@@ -1,4 +1,4 @@
-# Timeseries Tools
+# Timeseries Plots
 
 Tools for analyzing and plotting timeseries data in realtime
 
@@ -8,12 +8,17 @@ The documentation is available on [readthedocs](https://timeseriesplots.readthed
 ## Quick Start
 
 ```
-git clone --recursive https://github.com/jfennick/timeseriesplots.git
+git clone https://github.com/jfennick/timeseriesplots.git
 cd timeseriesplots
+
+cd install/
 ./install_conda.sh
 conda create --name tsp
 conda activate tsp
-./conda_devtools.sh
+./install_pypy.sh  # Optional, skip on Arm Macs
+./install_system_deps.sh
+cd ..
+
 pip install -e ".[all]"
 ```
 

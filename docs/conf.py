@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'Timeseries Tools'
+project = 'Timeseries Plots'
 copyright = '2023, Jake Fennick'
 author = 'Jake Fennick'
 

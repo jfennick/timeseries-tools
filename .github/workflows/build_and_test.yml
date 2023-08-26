@@ -25,12 +25,22 @@ defaults:
 # Using if: always() allows all steps to run, while still properly reporting failure.
 # See https://stackoverflow.com/questions/62045967/github-actions-is-there-a-way-to-continue-on-error-while-still-getting-correct
 
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
 jobs:
   build_and_test:
+    # See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+    # This will prevent DOS attacks from people blasting the CI with rapid fire commits.
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.os }}-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest] # , windows-latest, macos-latest
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -38,41 +48,45 @@ jobs:
         if: always()
         uses: actions/checkout@v3
         with:
-          submodules: recursive
+          path: tsp
 
-      - name: Setup conda / mamba
-        if: always()
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Setup mamba (linux, macos)
+        if: runner.os != 'Windows'
+        uses: conda-incubator/setup-miniconda@v2.2.0
         with:
           miniforge-variant: Mambaforge-pypy3
           miniforge-version: latest
+          environment-file: tsp/install/system_deps.yml
           activate-environment: tsp
           use-mamba: true
           channels: conda-forge
           python-version: "3.9.*" # pypy is not yet compatible with 3.10 and 3.11
 
-      - name: Install System Dependencies from Conda / Mamba
-        if: always()
-    # The version of cwltool in apt (2.0.20200224214940) does not support CWL version 1.2
-    #      run: sudo apt install cwltool
-    # Use conda to install cwltool (version 3.1.20220224085855)
-        run: ./conda_devtools.sh
+      - name: Setup conda (windows)
+        if: runner.os == 'Windows'
+        uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          miniforge-version: latest
+          environment-file: tsp/install/system_deps.yml
+          activate-environment: tsp
+          channels: conda-forge
+          python-version: "3.9.*" # pypy is not yet compatible with 3.10 and 3.11
 
       - name: ShellCheck Script Quality
         if: always()
-        run: shellcheck $(find . -name "*.sh" -not -path "./3/*")
+        run: shellcheck -e SC1017 $(find tsp/ -name "*.sh" -not -path "./3/*")
 
-      - name: Install Timeseries Tools
+      - name: Install timeseriesplots
         if: always()
-        run: pip install ".[all]"
+        run: cd tsp/ && pip install ".[all]"
 
       - name: Build Documentation
         if: always()
-        run: cd docs && make html
+        run: cd tsp/docs && make html
 
       - name: MyPy Check Type Annotations
         if: always()
-        run: mypy --no-incremental src/
+        run: cd tsp/ && mypy --no-incremental src/
         # NOTE: Do not use `mypy .` because then mypy will check both src/ and build/ causing:
         # src/tsp/__init__.py: error: Duplicate module named "tsp" (also at "./build/lib/tsp/__init__.py")
         # NOTE: We need to use --no-incremental because there is a bug in mypy.
@@ -81,15 +95,13 @@ jobs:
 
       - name: PyLint Check Code Quality
         if: always()
-        run: pylint src/
+        run: cd tsp/ && pylint src/
         # NOTE: See fail-under threshold in .pylintrc
 
       - name: PEP8 Code Formatting
         if: always()
         id: autopep8
-        uses: peter-evans/autopep8@v2
-        with:
-          args: --exit-code --recursive --diff --max-line-length 120 src/ tests/
+        run: cd tsp/ && autopep8 --exit-code --recursive --diff --max-line-length 120 src/
       - name: Fail if autopep8 made changes
         if: steps.autopep8.outputs.exit-code == 2
         run: exit 1
@@ -97,4 +109,4 @@ jobs:
        # NOTE: Do NOT add coverage to PYPY CI runs https://github.com/tox-dev/tox/issues/2252
       # - name: PyTest
       #   if: always()
-      #   run: pytest # --cov
+      #   run: cd tsp/ && pytest # --cov

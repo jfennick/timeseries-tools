@@ -1,4 +1,4 @@
-Timeseries Tools documentation
+Timeseries Plots documentation
 =======================================================
 
 https://github.com/jfennick/timeseriesplots

@@ -10,11 +10,11 @@ RUN CONDA="Mambaforge-pypy3-Linux-x86_64.sh" && \
     rm -f $CONDA
 ENV PATH /mambaforge-pypy3/bin:$PATH
 
-# Install timeseries tools
+# Install timeseriesplots
 COPY . /timeseriesplots
 WORKDIR /timeseriesplots
 
-RUN ./conda_devtools.sh
+RUN mamba env update --name base --file install/system_deps.yml
 RUN pip install -e ".[all]"
 
 ADD Dockerfile /
